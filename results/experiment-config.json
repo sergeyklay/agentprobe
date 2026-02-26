@@ -1,0 +1,11 @@
+{
+  "runs_per_condition": 2,
+  "model": "claude-sonnet-4-6",
+  "max_turns": 50,
+  "project_dir": "/home/ubuntu/work/typescript-eslint",
+  "base_commit": "a09921e2de2e8790e6a803016b825815ca9409d8",
+  "base_branch": "main",
+  "claude_md_file": "/home/ubuntu/work/experiment/CLAUDE.md",
+  "task_prompt_file": "/home/ubuntu/work/experiment/task-prompt.txt",
+  "started_at": "2026-02-26T13:37:24Z"
+}
