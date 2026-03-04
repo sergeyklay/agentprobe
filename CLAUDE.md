@@ -1,43 +1,49 @@
 # CLAUDE.md
 
+## Project
+
+AgentProbe — a multi-hypothesis benchmark framework for AI coding agents.
+Shell-based (bash + jq + yq + python3). No build step.
+
 ## Commands
 
-- Package manager: `pnpm` (NOT npm/yarn) - lockfile is pnpm-lock.yaml
-- Dependencies are pre-installed. Do NOT run `pnpm install`
-- Do NOT install Node.js or any global tools - everything is already configured
-- Run specific rule tests: `npx vitest run packages/eslint-plugin/tests/rules/<rule-name>.test.ts`
-- Typecheck eslint-plugin: `npx tsc --noEmit -p packages/eslint-plugin/tsconfig.json`
-- Run all eslint-plugin tests (slow, avoid): `npx vitest run packages/eslint-plugin/tests/`
+- Run experiment: `bash framework/orchestrator.sh experiments/<name>/`
+- Dry-run (preview schedule): `bash framework/orchestrator.sh experiments/<name>/ --dry-run`
+- Generate report only: `bash framework/report-generator.sh experiments/<name>/`
+- Extract metrics from log: `bash framework/metrics-collector.sh <log_file>`
 
-## ESLint rule development
+## Structure
 
-- Rules: `packages/eslint-plugin/src/rules/<rule-name>.ts`
-- Tests: `packages/eslint-plugin/tests/rules/<rule-name>.test.ts`
-- Rule helpers: `packages/eslint-plugin/src/util/`
-- Type utilities: `packages/type-utils/src/`
-- Test utility: use `RuleTester` from `@typescript-eslint/rule-tester` with `getFixturesRootDir()`
-- Type-checked rules use `createRuleTesterWithTypes()` from test helpers
-- Test format: `valid: [...]` and `invalid: [...]` arrays. Invalid cases need `errors: [{ messageId: '...' }]`
+- `framework/` — reusable engine (orchestrator, runner, libs)
+- `experiments/` — one directory per hypothesis, each with `experiment.yaml`
+- `research/` — background research documents
+- `archive/` — preserved v0 results
+
+## Adding experiments
+
+1. Create `experiments/<NNN>-<name>/` with `experiment.yaml`, `hypothesis.md`, `task-prompt.txt`
+2. Add `conditions/<name>/setup.sh` for each condition (receives worktree path as $1)
+3. No framework changes needed
 
 ## Architecture gotchas
 
-- Monorepo: eslint-plugin depends on parser, type-utils, utils, typescript-estree
-- AST types from `@typescript-eslint/typescript-estree` - not raw ESTree
-- Type checker access: `getParserServices(context)` inside rules, then `services.getTypeAtLocation(node)` or `services.program.getTypeChecker()`
-- `getConstrainedTypeAtLocation()` from `@typescript-eslint/type-utils` resolves generic constraints
-- Some rules use `isTypeFlagSet()`, `isTypeAnyType()`, `isTypeUnknownType()` from type-utils
+- Config is YAML parsed by `yq` (mikefarah v4), not JSON
+- Each agent run uses `git worktree` for isolation — main repo is never touched
+- Interleaving (A-B-A-B) controlled by `runs.interleave` in experiment.yaml
+- `metrics-collector.sh` tracks cache tokens separately from input tokens
+- `framework/lib/stats.sh` uses python3 for statistics (CI, Cohen's d)
 
 ## Boundaries
 
 ### Always
 
-- Run the specific test file after changes (not the full suite)
-- Run typecheck before considering done
-- Follow existing patterns in the file you modify
+- All code/comments/docs in English
+- Run shellcheck on modified .sh files
+- Use `set -euo pipefail` in all scripts
+- Source lib files with `source "$FRAMEWORK_DIR/lib/<name>.sh"`
 
 ### Never
 
-- Never run full test suite (`pnpm test` runs CI including e2e)
-- Never modify test infrastructure or fixtures
 - Never run `pnpm install` or `npm install`
-- Never install Node.js or any runtime
+- Never modify archived results in `archive/`
+- Never hardcode condition names in framework scripts — read from experiment.yaml

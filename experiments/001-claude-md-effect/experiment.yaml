@@ -1,0 +1,48 @@
+name: "CLAUDE.md Effect on Agent Performance"
+version: 1
+
+hypothesis: |
+  A well-crafted CLAUDE.md with non-discoverable information (landmines)
+  improves agent task quality without degrading success rate.
+  Contra: ETH Zurich (Gloaguen et al., arxiv:2602.11988) found context
+  files may hurt performance.
+
+project:
+  local_path: "~/work/typescript-eslint"
+  base_commit: "a09921e2de2e8790e6a803016b825815ca9409d8"
+
+agent:
+  cli: "claude"
+  model: "claude-sonnet-4-6"
+  max_turns: 50
+  output_format: "stream-json"
+  extra_flags:
+    - "--dangerously-skip-permissions"
+    - "--verbose"
+
+runs:
+  per_condition: 5
+  interleave: true
+
+conditions:
+  - name: "without-claude-md"
+    setup: "conditions/without-claude-md/setup.sh"
+  - name: "with-claude-md"
+    setup: "conditions/with-claude-md/setup.sh"
+
+task:
+  prompt_file: "task-prompt.txt"
+  verification:
+    # $AGENTPROBE_BASE_COMMIT is exported by runner.sh before eval
+    test_command: |
+      changed_rule=$(git diff --name-only "$AGENTPROBE_BASE_COMMIT" 2>/dev/null | grep 'packages/eslint-plugin/src/rules/' | head -1 | xargs -r basename | sed 's/\.ts$//' || echo "")
+      if [[ -n "$changed_rule" ]] && [[ -f "packages/eslint-plugin/tests/rules/${changed_rule}.test.ts" ]]; then
+        npx vitest run "packages/eslint-plugin/tests/rules/${changed_rule}.test.ts" 2>&1
+      else
+        npx vitest run packages/eslint-plugin/tests/ 2>&1
+      fi
+    typecheck_command: "npx tsc --noEmit -p packages/eslint-plugin/tsconfig.json"
+    test_parser: "vitest"
+
+statistics:
+  confidence_level: 0.95
