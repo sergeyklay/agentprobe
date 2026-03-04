@@ -14,7 +14,7 @@ project:
 
 agent:
   cli: "claude"
-  model: "claude-sonnet-4-6"
+  model: "claude-haiku-4-5"
   max_turns: 50
   timeout: 3600  # seconds; kill agent if it runs longer than 1 hour
   output_format: "stream-json"
