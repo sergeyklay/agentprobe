@@ -99,7 +99,7 @@ agent_exit_code=0
     --max-turns "$max_turns" \
     --output-format "$output_format" \
     "${extra_flags[@]}" \
-    2>&1
+    < /dev/null 2>&1
 ) > "$log_file" || agent_exit_code=$?
 
 if [[ $agent_exit_code -eq 124 ]]; then
