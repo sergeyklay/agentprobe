@@ -45,6 +45,7 @@ model=$(yq '.agent.model' "$CONFIG_FILE")
 max_turns=$(yq '.agent.max_turns' "$CONFIG_FILE")
 project_dir=$(eval echo "$(yq '.project.local_path' "$CONFIG_FILE")")
 base_commit=$(yq '.project.base_commit' "$CONFIG_FILE")
+setup_command=$(yq '.project.setup_command // ""' "$CONFIG_FILE")
 total_runs=$(( num_conditions * per_condition ))
 
 echo "============================================================"
@@ -55,6 +56,8 @@ echo "  Total runs: $total_runs"
 echo "  Interleave: $interleave"
 echo "  Project: $project_dir"
 echo "  Base commit: ${base_commit:0:12}"
+[[ -n "$setup_command" && "$setup_command" != "null" ]] && \
+  echo "  Setup: $setup_command"
 echo "  Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "============================================================"
 echo ""

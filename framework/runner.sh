@@ -73,18 +73,38 @@ echo "  Worktree: $worktree_dir"
 trap 'cleanup_worktree "$project_dir" "$worktree_dir"' EXIT
 
 # ---------------------------------------------------------------------------
-# 2. Run condition setup
+# 2. Run project setup (install dependencies, etc.)
+# ---------------------------------------------------------------------------
+setup_command=$(yq '.project.setup_command // ""' "$CONFIG_FILE")
+setup_timeout=$(yq '.project.setup_timeout // "'"$verification_timeout"'"' "$CONFIG_FILE")
+if [[ -n "$setup_command" && "$setup_command" != "null" ]]; then
+  echo "  Running project setup (timeout ${setup_timeout}s)..."
+  setup_exit=0
+  (cd "$worktree_dir" && timeout "$setup_timeout" \
+    bash -c "eval '$setup_command'" > /dev/null) || setup_exit=$?
+  if [[ $setup_exit -eq 124 ]]; then
+    echo "  ERROR: Project setup timed out after ${setup_timeout}s" >&2
+    exit 1
+  elif [[ $setup_exit -ne 0 ]]; then
+    echo "  ERROR: Project setup failed (exit $setup_exit)" >&2
+    exit 1
+  fi
+  echo "  Project setup complete."
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Run condition setup
 # ---------------------------------------------------------------------------
 setup_script="$EXPERIMENT_DIR/$cond_setup"
 bash "$setup_script" "$worktree_dir"
 
 # ---------------------------------------------------------------------------
-# 3. Read task prompt
+# 4. Read task prompt
 # ---------------------------------------------------------------------------
 task_prompt=$(cat "$prompt_file")
 
 # ---------------------------------------------------------------------------
-# 4. Run agent
+# 5. Run agent
 # ---------------------------------------------------------------------------
 start_time=$(date +%s%3N)
 
@@ -113,12 +133,12 @@ echo "  Duration: ${duration_ms}ms (~$(( duration_ms / 1000 / 60 )) min)"
 echo "  Agent exit code: $agent_exit_code"
 
 # ---------------------------------------------------------------------------
-# 5. Capture diff
+# 6. Capture diff
 # ---------------------------------------------------------------------------
 (cd "$worktree_dir" && git diff "$base_commit" > "$diff_file" 2>/dev/null) || true
 
 # ---------------------------------------------------------------------------
-# 6. Run verification (tests, typecheck)
+# 7. Run verification (tests, typecheck)
 # ---------------------------------------------------------------------------
 test_exit_code=0
 tests_passed=0
@@ -160,7 +180,7 @@ if [[ -n "$typecheck_command" && "$typecheck_command" != "null" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 7. Extract metrics from log
+# 8. Extract metrics from log
 # ---------------------------------------------------------------------------
 extracted=$(bash "$FRAMEWORK_DIR/metrics-collector.sh" "$log_file")
 input_tokens=$(echo "$extracted" | jq '.input_tokens')
@@ -171,7 +191,7 @@ total_tokens=$(echo "$extracted" | jq '.total_tokens')
 tool_calls=$(echo "$extracted" | jq '.tool_calls')
 
 # ---------------------------------------------------------------------------
-# 8. Diff stats
+# 9. Diff stats
 # ---------------------------------------------------------------------------
 files_changed=0
 insertions=0
@@ -186,7 +206,7 @@ if [[ -s "$diff_file" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 9. Commit info
+# 10. Commit info
 # ---------------------------------------------------------------------------
 has_commit=false
 commit_hash=""
@@ -198,7 +218,7 @@ if [[ "$(cd "$worktree_dir" && git rev-parse HEAD)" != "$base_commit" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 10. Write metrics.json
+# 11. Write metrics.json
 # ---------------------------------------------------------------------------
 json_create_metrics "$metrics_file" \
   "experiment=$(basename "$EXPERIMENT_DIR")" \
