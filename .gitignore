@@ -19,3 +19,4 @@
 
 # Temporary worktrees
 /tmp/agentprobe-runs
+framework/__pycache__/
