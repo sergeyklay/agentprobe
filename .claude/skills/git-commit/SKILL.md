@@ -89,3 +89,8 @@ Report: commit hash, files changed, insertions/deletions.
 | "nothing to commit" | Check `git status`, verify files have changes |
 | Pre-commit hook fails | Read the error, fix the issue, create a NEW commit (do not amend) |
 | Wrong files committed | `git reset --soft HEAD~1`, re-stage correctly, commit again |
+
+## Handoff
+
+If the user also asked to create a PR, invoke the `creating-pr` skill after
+committing. Do not hand-roll `gh pr create` — the skill has a required template.

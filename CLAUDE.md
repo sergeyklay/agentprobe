@@ -25,6 +25,7 @@
 - `set -euo pipefail` in every script
 - Run `shellcheck` on modified .sh files before considering done
 - Source libs via `source "$FRAMEWORK_DIR/lib/<name>.sh"`, never relative paths
+- Use matching skills from `.claude/skills/` when they exist — especially `git-commit` for commits and `creating-pr` for pull requests
 
 ### Ask first
 
