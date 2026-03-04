@@ -1,0 +1,132 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+new file mode 100644
+index 000000000..1f5336c37
+--- /dev/null
++++ b/CLAUDE.md
+@@ -0,0 +1,36 @@
++# CLAUDE.md
++
++## Commands
++
++- Package manager: `pnpm` (NOT npm/yarn)
++- Run specific rule tests: `npx vitest run packages/eslint-plugin/tests/rules/<rule-name>.test.ts`
++- Typecheck eslint-plugin: `npx tsc --noEmit -p packages/eslint-plugin/tsconfig.json`
++- Do NOT run full test suite (`pnpm test` triggers full CI including e2e)
++
++## Architecture gotchas
++
++- AST is hybrid TSESTree, not raw ESTree. Node shapes are defined in `packages/ast-spec` — do not guess structure, verify against type definitions
++- Type checker access inside rules: `ESLintUtils.getParserServices(context)` then `services.getTypeAtLocation(node)` — never access tsc directly
++- `getConstrainedTypeAtLocation()` from `@typescript-eslint/type-utils` resolves generic constraints — use it for narrowed types
++- Monorepo: eslint-plugin depends on parser, type-utils, typescript-estree. Changes to upstream packages require rebuild before plugin tests pass
++
++## Rule development
++
++- Scaffold rules with `ESLintUtils.RuleCreator` — never export raw `{ create, meta }` objects
++- Import `RuleTester` from `@typescript-eslint/rule-tester`, NOT from `eslint` core
++- Type-checked rules use `createRuleTesterWithTypes()` from test helpers
++- Test format: explicit `valid: [...]` and `invalid: [...]` arrays. Invalid cases need `errors: [{ messageId: '...' }]`
++- Do NOT generate test cases dynamically (no `.map()`, no loops) — `@typescript-eslint/internal/no-dynamic-tests` rule will fail CI
++
++## Boundaries
++
++### Always
++
++- Run the specific test file after changes, not the full suite
++- Run typecheck before considering done
++- Follow existing patterns in the file you modify
++
++### Never
++
++- Never modify test infrastructure, fixtures, or `ast-spec` definitions
++- Never run `pnpm install` or install any tools
+diff --git a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+index 12e5f5b1e..8ebc2b2d5 100644
+--- a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
++++ b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+@@ -413,6 +413,61 @@ export default createRule<Options, MessageIds>({
+             return;
+           }
+ 
++          // Check if the variable has an explicitly annotated type that is nullable.
++          // If the declared type is nullable but the current type is not, it means
++          // type narrowing has occurred (through control flow or assignment).
++          // Be conservative in nested scopes where narrowing might be unreliable.
++          if (node.expression.type === AST_NODE_TYPES.Identifier) {
++            const declaration = getDeclaration(services, node.expression);
++            if (
++              declaration &&
++              ts.isVariableDeclaration(declaration) &&
++              declaration.type != null
++            ) {
++              const declaredType = checker.getTypeFromTypeNode(
++                declaration.type,
++              );
++              // Only skip reporting if we have an explicitly annotated nullable type
++              // that has been narrowed to non-nullable, AND we're in a nested scope
++              if (declaredType && isNullableType(declaredType)) {
++                // Check if we're in a nested scope by looking at parent nodes
++                let parent = node.parent;
++                let inNestedScope = false;
++                while (parent) {
++                  // Check if we're inside a block statement (if, while, for, etc.)
++                  if (
++                    parent.type === AST_NODE_TYPES.BlockStatement ||
++                    parent.type === AST_NODE_TYPES.ArrowFunctionExpression ||
++                    parent.type === AST_NODE_TYPES.FunctionExpression ||
++                    parent.type === AST_NODE_TYPES.IfStatement ||
++                    parent.type === AST_NODE_TYPES.WhileStatement ||
++                    parent.type === AST_NODE_TYPES.ForStatement ||
++                    parent.type === AST_NODE_TYPES.ForInStatement ||
++                    parent.type === AST_NODE_TYPES.ForOfStatement ||
++                    parent.type === AST_NODE_TYPES.SwitchStatement ||
++                    parent.type === AST_NODE_TYPES.TryStatement ||
++                    parent.type === AST_NODE_TYPES.CatchClause
++                  ) {
++                    inNestedScope = true;
++                    break;
++                  }
++                  // Stop when we reach a function or program boundary
++                  if (
++                    parent.type === AST_NODE_TYPES.FunctionDeclaration ||
++                    parent.type === AST_NODE_TYPES.Program
++                  ) {
++                    break;
++                  }
++                  parent = parent.parent;
++                }
++
++                if (inNestedScope) {
++                  return;
++                }
++              }
++            }
++          }
++
+           context.report({
+             node,
+             messageId: 'unnecessaryAssertion',
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..4b3fb7cad 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,19 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // Test case for issue with let variables and type narrowing
++    `
++declare function getValue(): string | null;
++
++function test() {
++  let x: string | null = getValue();
++  if (x !== null) {
++    // In this block, x should be narrowed to string
++    // But the assertion might still be needed in complex scoping
++    const y: string = x!;
++  }
++}
++    `,
+   ],
+ 
+   invalid: [

@@ -1,0 +1,35 @@
+Fix a bug in the `no-unnecessary-type-assertion` ESLint rule.
+
+Bug description: The `no-unnecessary-type-assertion` rule produces a false positive when a variable has a union type like `string | undefined` and is used after a type guard narrows it. Specifically, when a non-null assertion (`!`) is used on a value whose type has already been narrowed by a preceding `if` check, the rule incorrectly flags the assertion as unnecessary. However, the assertion IS necessary because the type information from the TypeScript compiler's type-checker at that specific node still reports the original union type before narrowing.
+
+Reproduction: the rule currently flags the `!` in patterns like this as unnecessary even though removing it would cause a type error:
+
+```typescript
+declare function foo(): string | undefined;
+
+function test() {
+  const x = foo();
+  if (x == null) return;
+  // x is narrowed to `string` here by control flow
+  // but some complex patterns cause the rule to still see `string | undefined`
+  const arr: string[] = [];
+  arr.push(x!); // rule flags this, but it may be needed in complex scoping
+}
+```
+
+Your task:
+1. Investigate the `no-unnecessary-type-assertion` rule source in `packages/eslint-plugin/src/rules/`
+2. Look at the existing test cases in `packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts` to understand the test patterns
+3. Identify where the rule logic handles `TSNonNullExpression` and determine if there are edge cases where narrowing context is lost
+4. If you find the bug, fix it. If you determine the reproduction above is insufficient, add test cases that demonstrate edge cases around type narrowing and non-null assertions
+5. Add or update test cases for your changes
+6. Run the relevant tests to verify: `npx vitest run packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts`
+7. Run typecheck: `npx tsc --noEmit -p packages/eslint-plugin/tsconfig.json`
+8. Commit your changes to the current branch with a descriptive conventional commit message
+
+Important:
+- Use `pnpm` as the package manager (not npm or yarn)
+- Do NOT run `pnpm install` - dependencies are already installed
+- Do NOT attempt to install Node.js or any global tools
+- Do NOT run the full test suite - only run the specific test file mentioned above
+- Follow existing code patterns in the repository

@@ -1,0 +1,158 @@
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..266cc1324 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -149,6 +149,19 @@ export const foo = <TData extends Data<any>>(data: TData) => {
+     `
+ function bar<T extends any>(value: T | undefined): T {
+   return value!;
++}
++    `,
++    // narrowing: let variable in closure loses narrowing because of a write in the outer
++    // scope, so ! is still necessary
++    `
++declare function foo(): string | undefined;
++function test() {
++  let x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  const fn = () => arr.push(x!);
++  x = foo();
++  fn();
+ }
+     `,
+     `
+@@ -1563,5 +1576,133 @@ interface Overloaded {
+ ((value => {}) as Overloaded)('');
+       `,
+     },
++    // narrowing: const variable narrowed by null-check type guard, ! is unnecessary
++    {
++      code: `
++declare function foo(): string | undefined;
++function test() {
++  const x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x!);
++}
++      `,
++      errors: [
++        {
++          messageId: 'unnecessaryAssertion',
++        },
++      ],
++      output: `
++declare function foo(): string | undefined;
++function test() {
++  const x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x);
++}
++      `,
++    },
++    // narrowing: let variable narrowed by null-check in the same scope, ! is unnecessary
++    {
++      code: `
++declare function foo(): string | undefined;
++function test() {
++  let x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x!);
++}
++      `,
++      errors: [
++        {
++          messageId: 'unnecessaryAssertion',
++        },
++      ],
++      output: `
++declare function foo(): string | undefined;
++function test() {
++  let x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x);
++}
++      `,
++    },
++    // narrowing: function parameter narrowed by null-check, ! is unnecessary
++    {
++      code: `
++function test(x: string | undefined) {
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x!);
++}
++      `,
++      errors: [
++        {
++          messageId: 'unnecessaryAssertion',
++        },
++      ],
++      output: `
++function test(x: string | undefined) {
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x);
++}
++      `,
++    },
++    // narrowing: let variable narrowed and used in a closure with no writes - ! is unnecessary
++    // TypeScript preserves narrowing for unwritten let variables in closures
++    {
++      code: `
++declare function foo(): string | undefined;
++function test() {
++  let x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  const fn = () => arr.push(x!);
++  fn();
++}
++      `,
++      errors: [
++        {
++          messageId: 'unnecessaryAssertion',
++        },
++      ],
++      output: `
++declare function foo(): string | undefined;
++function test() {
++  let x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  const fn = () => arr.push(x);
++  fn();
++}
++      `,
++    },
++    // narrowing: function parameter narrowed and used in a closure with no writes - ! is unnecessary
++    // TypeScript preserves narrowing for unwritten parameters in closures
++    {
++      code: `
++function test(x: string | undefined) {
++  if (x == null) return;
++  const arr: string[] = [];
++  const fn = () => arr.push(x!);
++  fn();
++}
++      `,
++      errors: [
++        {
++          messageId: 'unnecessaryAssertion',
++        },
++      ],
++      output: `
++function test(x: string | undefined) {
++  if (x == null) return;
++  const arr: string[] = [];
++  const fn = () => arr.push(x);
++  fn();
++}
++      `,
++    },
+   ],
+ });
