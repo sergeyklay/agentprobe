@@ -30,7 +30,7 @@ Each commit = one logical change. Split unrelated changes into separate commits.
 - If user says "commit all" — group into logical atomic commits
 - If ambiguous — ask which files and grouping
 
-### Step 2: Check branch safety
+### Step 2: Check branch safety (BLOCKING)
 
 ```bash
 git branch --show-current
@@ -38,9 +38,13 @@ git branch --show-current
 
 Protected branches: `main`, `master`, `develop`, `release/*`, `hotfix/*`.
 
-- If on protected branch: inform user, create feature branch
-  `<type>/<kebab-description>` before committing
-- If on feature branch: proceed
+**STOP if on a protected branch.** Do not commit. Do not proceed to Step 3.
+Instead:
+1. Inform the user: "Cannot commit to `<branch>` — it is a protected branch."
+2. Create a feature branch: `git checkout -b <type>/<kebab-description>`
+3. Only then continue to Step 3.
+
+If on a feature branch: proceed.
 
 ### Step 3: Match project commit style
 
