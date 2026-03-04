@@ -1,0 +1,57 @@
+diff --git a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+index 12e5f5b1e..e23970e18 100644
+--- a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
++++ b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+@@ -413,6 +413,25 @@ export default createRule<Options, MessageIds>({
+             return;
+           }
+ 
++          // Don't report if this is a narrowed identifier whose original type was nullable.
++          // This prevents false positives when type guards narrow union types.
++          if (node.expression.type === AST_NODE_TYPES.Identifier) {
++            const declaration = getDeclaration(services, node.expression);
++            if (
++              declaration &&
++              ts.isVariableDeclaration(declaration) &&
++              declaration.type
++            ) {
++              // Only check explicit type annotations to avoid over-conservatism
++              const declaredType = checker.getTypeFromTypeNode(declaration.type);
++              if (isNullableType(declaredType) && declaredType !== actualType) {
++                // Original type was nullable but current type is not (narrowing occurred)
++                // Be conservative and don't report the assertion as unnecessary
++                return;
++              }
++            }
++          }
++
+           context.report({
+             node,
+             messageId: 'unnecessaryAssertion',
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..473eafa79 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,22 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // Type narrowing with type guards on explicitly-typed nullable variables
++    `
++let x: string | undefined;
++if (x != null) {
++  const arr: string[] = [];
++  arr.push(x!); // Should NOT be flagged as unnecessary
++}
++    `,
++    `
++function test(x: string | undefined) {
++  if (x != null) {
++    const arr: string[] = [];
++    arr.push(x!); // Should NOT be flagged as unnecessary
++  }
++}
++    `,
+   ],
+ 
+   invalid: [

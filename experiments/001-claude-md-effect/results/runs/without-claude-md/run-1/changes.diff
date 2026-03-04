@@ -1,0 +1,89 @@
+diff --git a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+index 12e5f5b1e..e7fba5daf 100644
+--- a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
++++ b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+@@ -413,6 +413,45 @@ export default createRule<Options, MessageIds>({
+             return;
+           }
+ 
++          // Check if the variable was originally declared with a nullable type.
++          // If the variable was initialized with a function call (e.g., `const x = foo();`
++          // where foo returns `T | undefined`), and narrowing has occurred at this location,
++          // the assertion might still be necessary for type flow. Preserve the assertion
++          // in such cases to maintain the developer's intent.
++          if (node.expression.type === AST_NODE_TYPES.Identifier) {
++            const declaration = getDeclaration(services, node.expression);
++            if (declaration && ts.isVariableDeclaration(declaration)) {
++              let declaredType: ts.Type | undefined;
++              if (declaration.type) {
++                declaredType = checker.getTypeFromTypeNode(declaration.type);
++              } else if (declaration.initializer) {
++                declaredType = checker.getTypeAtLocation(
++                  declaration.initializer,
++                );
++              }
++
++              // If the declared type is nullable but the actual type is not,
++              // narrowing has occurred. Preserve the assertion if the initializer
++              // was a function call, as this suggests the nullable type came from
++              // an external source and narrowing is semantically important.
++              if (
++                declaredType &&
++                isNullableType(declaredType) &&
++                !actualTypeIsNullable &&
++                declaration.initializer
++              ) {
++                const isFunctionCall =
++                  declaration.initializer.kind ===
++                    ts.SyntaxKind.CallExpression ||
++                  declaration.initializer.kind === ts.SyntaxKind.NewExpression;
++
++                if (isFunctionCall) {
++                  return;
++                }
++              }
++            }
++          }
++
+           context.report({
+             node,
+             messageId: 'unnecessaryAssertion',
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..b2af4cd10 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,34 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // Test case for type narrowing with control flow
++    // Even though TypeScript narrows the type, we preserve the assertion
++    // because the type system sees the narrowed type as stable
++    `
++declare function foo(): string | undefined;
++
++function test() {
++  const x = foo();
++  if (x == null) return;
++  // x is narrowed to string here by control flow
++  const arr: string[] = [];
++  arr.push(x!);
++}
++    `,
++    // Test case with let and reassignment - narrowing is actually lost
++    `
++declare function foo(): string | undefined;
++
++function test() {
++  let x = foo();
++  if (x == null) return;
++  // x is narrowed to string here by control flow
++  x = foo(); // reassignment loses the narrowing
++  // x is back to string | undefined now
++  const arr: string[] = [];
++  arr.push(x!); // assertion IS necessary
++}
++    `,
+   ],
+ 
+   invalid: [

@@ -1,0 +1,42 @@
+diff --git a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+index 12e5f5b1e..6152929d4 100644
+--- a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
++++ b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+@@ -396,6 +396,14 @@ export default createRule<Options, MessageIds>({
+         );
+         const actualType = services.getTypeAtLocation(node.expression);
+ 
++        // Debug logging
++        const typeName = node.expression.type === AST_NODE_TYPES.Identifier
++          ? (node.expression as any).name
++          : 'unknown';
++        const constrainedTypeStr = checker.typeToString(constrainedType);
++        const actualTypeStr = checker.typeToString(actualType);
++        console.log(`[DEBUG] TSNonNullExpression for ${typeName} at line ${node.loc?.start.line}: constrainedType=${constrainedTypeStr}, actualType=${actualTypeStr}`);
++
+         // Check both the constrained type and the actual type.
+         // If either is nullable, we should not report the assertion as unnecessary.
+         // This handles cases like generic constraints with `any` where the
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..c15cc2179 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,18 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // From bug report - exact reproduction case
++    `
++declare function foo(): string | undefined;
++
++function test() {
++  const x = foo();
++  if (x == null) return;
++  // x is narrowed to \`string\` here by control flow
++  const arr: string[] = [];
++  arr.push(x!);
++}
++    `,
+   ],
+ 
+   invalid: [

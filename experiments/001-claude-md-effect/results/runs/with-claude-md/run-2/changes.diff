@@ -1,0 +1,111 @@
+diff --git a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+index 12e5f5b1e..74c84b5c3 100644
+--- a/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
++++ b/packages/eslint-plugin/src/rules/no-unnecessary-type-assertion.ts
+@@ -70,6 +70,61 @@ export default createRule<Options, MessageIds>({
+     const checker = services.program.getTypeChecker();
+     const compilerOptions = services.program.getCompilerOptions();
+ 
++    /**
++     * Returns true if the variable might have fragile type narrowing from function calls
++     */
++    function hasFragileTypeNarrowing(
++      node: TSESTree.Expression,
++      actualType: ts.Type,
++      constrainedType: ts.Type,
++    ): boolean {
++      if (node.type !== AST_NODE_TYPES.Identifier) {
++        return false;
++      }
++
++      const declaration = getDeclaration(services, node);
++      if (!declaration) {
++        return true; // unknown declaration, be conservative
++      }
++
++      // For parameters with generic types, check if the constraint is non-nullable
++      // only then should we be confident about narrowing
++      if (ts.isParameter(declaration)) {
++        // If the parameter type is a generic type parameter with no constraint,
++        // or with a nullable constraint, be conservative
++        if (isTypeFlagSet(actualType, ts.TypeFlags.TypeParameter)) {
++          // Don't be conservative for type parameters - just report normally
++          return false;
++        }
++        // For regular parameters that have been narrowed, be conservative
++        const paramType = services.getTypeAtLocation(declaration);
++        if (isNullableType(paramType) && !isNullableType(actualType)) {
++          return true;
++        }
++      }
++
++      // For variables, only be conservative if the initializer is a function call
++      // that returns a nullable type, AND the type has been narrowed
++      if (ts.isVariableDeclaration(declaration)) {
++        // Check if initializer is a function call
++        if (
++          declaration.initializer &&
++          ts.isCallExpression(declaration.initializer)
++        ) {
++          const initializerType = checker.getTypeAtLocation(
++            declaration.initializer,
++          );
++          // Only be conservative if the initializer returns a union with undefined/null
++          // and the current type is narrower (narrowing has occurred)
++          if (isNullableType(initializerType) && !isNullableType(actualType)) {
++            return true;
++          }
++        }
++      }
++
++      return false;
++    }
++
+     /**
+      * Returns true if there's a chance the variable has been used before a value has been assigned to it
+      */
+@@ -408,7 +463,12 @@ export default createRule<Options, MessageIds>({
+         if (!constrainedTypeIsNullable && !actualTypeIsNullable) {
+           if (
+             node.expression.type === AST_NODE_TYPES.Identifier &&
+-            isPossiblyUsedBeforeAssigned(node.expression)
++            (isPossiblyUsedBeforeAssigned(node.expression) ||
++              hasFragileTypeNarrowing(
++                node.expression,
++                actualType,
++                constrainedType,
++              ))
+           ) {
+             return;
+           }
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..623e7dc15 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,26 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // https://github.com/typescript-eslint/typescript-eslint/issues/XXXXX
++    // Type narrowing after control flow guard
++    `
++declare function foo(): string | undefined;
++
++function test() {
++  const x = foo();
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x!);
++}
++    `,
++    // Another control flow narrowing pattern
++    `
++function test(value: string | undefined) {
++  if (!value) return;
++  const arr: string[] = [];
++  arr.push(value!);
++}
++    `,
+   ],
+ 
+   invalid: [

@@ -1,0 +1,59 @@
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..317edeee9 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,54 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // Test cases for type narrowing edge cases
++    // Type is properly narrowed by if check with early return
++    `
++declare function getValue(): string | undefined;
++function test() {
++  const x = getValue();
++  if (x == null) return;
++  const arr: string[] = [];
++  arr.push(x);  // No assertion needed - x is narrowed to string
++}
++    `,
++    // Type is properly narrowed by if check in block
++    `
++declare function getValue(): string | undefined;
++function test() {
++  const x = getValue();
++  if (x != null) {
++    const arr: string[] = [];
++    arr.push(x);  // No assertion needed - x is narrowed to string
++  }
++}
++    `,
++    // Type narrowing with null check
++    `
++declare function getValue(): string | null;
++function test() {
++  const x = getValue();
++  if (x !== null) {
++    const arr: string[] = [];
++    arr.push(x);  // No assertion needed
++  }
++}
++    `,
++    // Cases where assertion is still needed - with generic constraints
++    `
++function bar<T extends string | undefined>(value: T): string {
++  return value!;
++}
++    `,
++    // Type parameter with undefined union - assertion needed
++    `
++declare function getValue<T extends { x?: string }>(obj: T): typeof obj.x;
++function test<T extends { x?: string }>(obj: T) {
++  const x = getValue(obj);
++  const arr: string[] = [];
++  arr.push(x!);
++}
++    `,
+   ],
+ 
+   invalid: [

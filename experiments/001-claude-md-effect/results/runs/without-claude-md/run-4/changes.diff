@@ -1,0 +1,42 @@
+diff --git a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+index 6c7dee13e..bd7b72469 100644
+--- a/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
++++ b/packages/eslint-plugin/tests/rules/no-unnecessary-type-assertion.test.ts
+@@ -522,6 +522,37 @@ interface Unioned {
+ ((() => {}) as Unioned)() as undefined;
+       `,
+     },
++    // Type narrowing is preserved through let variables in TypeScript 5.x
++    // even with closures, as long as the variable itself isn't reassigned
++    `
++declare function foo(): string | undefined;
++
++function testClosure() {
++  let x: string | undefined = foo();
++  if (x != null) {
++    // x is narrowed to string here
++    const arr: string[] = [];
++    arr.push(x);  // Narrowing is preserved, no ! needed
++  }
++}
++    `,
++    // Type narrowing with reassignment in function
++    // When a variable is reassigned somewhere in the function, TypeScript
++    // may de-narrow it in closures, but simple uses still preserve narrowing
++    `
++declare function getValue(): string | undefined;
++
++function testReassignment() {
++  let x: string | undefined = getValue();
++  if (x != null) {
++    // Even though we reassign x later in the function, at this point
++    // the narrowing is still valid for direct use
++    console.log(x.length);  // No ! needed for direct use
++  }
++  // Later reassignment
++  x = getValue();
++}
++    `,
+   ],
+ 
+   invalid: [
