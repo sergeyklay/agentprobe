@@ -25,27 +25,27 @@ write all generated files in English.
 
 ### Round 2: Task and Project
 
-5. Ask where the agent will work — offer two options:
+1. Ask where the agent will work — offer two options:
    - **Specific project**: user provides local path to a git repo
    - **Find a project**: run the discovery procedure in
      `references/project-discovery.md`, present 3-5 candidates, let user choose
 
-6. Ask for the base commit SHA (if auto-discovered, use HEAD after cloning)
+2. Ask for the base commit SHA (if auto-discovered, use HEAD after cloning)
 
-7. Ask if the project needs a setup command to run in each worktree
+3. Ask if the project needs a setup command to run in each worktree
    before the agent starts (e.g., `pnpm install --frozen-lockfile`,
    `pip install -e .`). Git worktrees only contain tracked files —
    dependencies must be installed explicitly. Optional field:
    `project.setup_command`
 
-8. Ask what task the agent should perform — must be:
+4. Ask what task the agent should perform — must be:
    - Specific enough to be actionable
    - Identical across all conditions
    - Verifiable with tests
    - If auto-discovered, rewrite the issue as an agent instruction
      (imperative form, verification steps, no solution hints)
 
-9. Ask how to verify success:
+5. Ask how to verify success:
    - Test command (e.g., `npx vitest run path/to/test.ts`)
    - Typecheck command (optional)
    - Test parser: `vitest` or `jest`
@@ -55,33 +55,33 @@ write all generated files in English.
 
 ### Round 3: Agent Configuration
 
-10. Ask which agent CLI (default: `claude`)
-11. Ask which model (default: `claude-sonnet-4-6`)
-12. Ask max turns (default: 50)
-13. Ask agent timeout in seconds (default: 3600 = 1 hour)
-14. Ask verification timeout in seconds (default: 600 = 10 min) —
-    this prevents hung tests/typecheck from blocking the experiment
-15. Ask runs per condition (default: 5, minimum 3 — at temperature=0
-    accuracy varies up to 15% between runs per Atil et al. arxiv:2408.04667)
-16. Ask whether to interleave conditions (default: true, A-B-A-B pattern
+1. Ask which agent CLI (default: `claude`)
+2. Ask which model (default: `claude-sonnet-4-6`)
+3. Ask max turns (default: 50)
+4. Ask agent timeout in seconds (default: 3600 = 1 hour)
+5. Ask verification timeout in seconds (default: 600 = 10 min) —
+   this prevents hung tests/typecheck from blocking the experiment
+6. Ask runs per condition (default: 5, minimum 3 — at temperature=0
+   accuracy varies up to 15% between runs per Atil et al. arxiv:2408.04667)
+7. Ask whether to interleave conditions (default: true, A-B-A-B pattern
     to control for API latency drift)
 
 ### Round 4: Condition Artifacts
 
 For each condition:
 
-17. Ask what files to place in the worktree:
-    - CLAUDE.md variant, .cursor/rules/\*.md, settings.json, or nothing
-18. Ask if any other setup is needed beyond file placement
+1. Ask what files to place in the worktree:
+   - CLAUDE.md variant, .cursor/rules/\*.md, settings.json, or nothing
+2. Ask if any other setup is needed beyond file placement
 
 If the user provides artifact content inline, save it to the condition's
 `artifacts/` directory.
 
 ### Round 5: References
 
-19. Ask for references supporting the hypothesis:
-    - arxiv.org URLs, GitHub URLs, blog posts, prior AgentProbe results
-20. Ask for any additional context (why it matters, prior work, caveats)
+1. Ask for references supporting the hypothesis:
+   - arxiv.org URLs, GitHub URLs, blog posts, prior AgentProbe results
+2. Ask for any additional context (why it matters, prior work, caveats)
 
 For each URL provided:
 
@@ -118,13 +118,13 @@ After the interview, generate the experiment:
 
 ## Validation
 
-5. Run dry-run to verify:
+1. Run dry-run to verify:
    ```bash
    bash framework/orchestrator.sh experiments/<NNN>-<name>/ --dry-run
    ```
-6. Show the output to the user
-7. If validation fails, diagnose and fix, then re-run
-8. If validation passes, confirm the experiment is ready
+2. Show the output to the user
+3. If validation fails, diagnose and fix, then re-run
+4. If validation passes, confirm the experiment is ready
 
 ## Defaults
 
