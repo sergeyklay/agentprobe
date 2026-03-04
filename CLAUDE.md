@@ -3,6 +3,7 @@
 ## Commands
 
 - Run experiment: `bash framework/orchestrator.sh experiments/<name>/`
+- Quick test (N runs per condition): `bash framework/orchestrator.sh experiments/<name>/ --runs 1`
 - Dry-run: `bash framework/orchestrator.sh experiments/<name>/ --dry-run`
 - Clean up stuck worktrees: `source framework/lib/git-isolation.sh && cleanup_all_worktrees ~/work/<project>`
 

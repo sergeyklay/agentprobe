@@ -4,7 +4,7 @@
 # Reads config, validates environment, builds a run schedule (with optional
 # interleaving), executes each run via runner.sh, then generates a report.
 #
-# Usage: framework/orchestrator.sh <experiment_dir> [--dry-run]
+# Usage: framework/orchestrator.sh <experiment_dir> [--dry-run] [--runs N]
 
 set -euo pipefail
 
@@ -12,8 +12,17 @@ FRAMEWORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$FRAMEWORK_DIR/lib/validation.sh"
 source "$FRAMEWORK_DIR/lib/git-isolation.sh"
 
-EXPERIMENT_DIR="$(cd "${1:?Usage: orchestrator.sh <experiment_dir> [--dry-run]}" && pwd)"
-DRY_RUN="${2:-}"
+EXPERIMENT_DIR="$(cd "${1:?Usage: orchestrator.sh <experiment_dir> [--dry-run] [--runs N]}" && pwd)"
+shift
+DRY_RUN=""
+RUNS_OVERRIDE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN="--dry-run"; shift ;;
+    --runs) RUNS_OVERRIDE="${2:?--runs requires a number}"; shift 2 ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
 CONFIG_FILE="$EXPERIMENT_DIR/experiment.yaml"
 
 # ---------------------------------------------------------------------------
@@ -29,7 +38,7 @@ echo ""
 # Read config
 # ---------------------------------------------------------------------------
 experiment_name=$(yq '.name' "$CONFIG_FILE")
-per_condition=$(yq '.runs.per_condition' "$CONFIG_FILE")
+per_condition=${RUNS_OVERRIDE:-$(yq '.runs.per_condition' "$CONFIG_FILE")}
 interleave=$(yq '.runs.interleave // false' "$CONFIG_FILE")
 num_conditions=$(yq '.conditions | length' "$CONFIG_FILE")
 model=$(yq '.agent.model' "$CONFIG_FILE")
