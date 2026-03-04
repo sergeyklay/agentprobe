@@ -1,0 +1,36 @@
+name: "{{NAME}}"
+version: 1
+
+hypothesis: |
+  {{HYPOTHESIS}}
+
+project:
+  local_path: "{{PROJECT_PATH}}"
+  base_commit: "{{BASE_COMMIT}}"
+
+agent:
+  cli: "{{AGENT_CLI}}"
+  model: "{{MODEL}}"
+  max_turns: {{MAX_TURNS}}
+  output_format: "stream-json"
+  extra_flags:
+    - "--dangerously-skip-permissions"
+    - "--verbose"
+
+runs:
+  per_condition: {{RUNS_PER_CONDITION}}
+  interleave: {{INTERLEAVE}}
+
+conditions:
+{{CONDITIONS}}
+
+task:
+  prompt_file: "task-prompt.txt"
+  verification:
+    # $AGENTPROBE_BASE_COMMIT is available — use instead of HEAD~1
+    test_command: "{{TEST_COMMAND}}"
+    typecheck_command: "{{TYPECHECK_COMMAND}}"
+    test_parser: "{{TEST_PARSER}}"
+
+statistics:
+  confidence_level: 0.95

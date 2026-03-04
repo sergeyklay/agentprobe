@@ -1,0 +1,87 @@
+---
+name: git-commit
+description: >
+  Use when asked to commit, save, or persist changes to Git.
+  Handles atomic commits, branch safety, Conventional Commits format,
+  and project style matching. Do NOT use for pushing, creating PRs,
+  or branch management beyond safety checks.
+---
+
+# Git Commit
+
+## Workflow
+
+### Step 1: Identify changes and group atomically
+
+```bash
+git status --short
+git diff
+git diff --cached
+```
+
+Each commit = one logical change. Split unrelated changes into separate commits.
+
+| Situation | Commits |
+|---|---|
+| New service + its tests | 1 commit |
+| New feature + unrelated config fix | 2 commits |
+| Multiple files for one feature | 1 commit |
+
+- If user says "commit all" — group into logical atomic commits
+- If ambiguous — ask which files and grouping
+
+### Step 2: Check branch safety
+
+```bash
+git branch --show-current
+```
+
+Protected branches: `main`, `master`, `develop`, `release/*`, `hotfix/*`.
+
+- If on protected branch: inform user, create feature branch
+  `<type>/<kebab-description>` before committing
+- If on feature branch: proceed
+
+### Step 3: Match project commit style
+
+```bash
+git log --format="%s" -20
+```
+
+Identify vocabulary, detail level, scope patterns. Mimic the project's
+phrasing while following Conventional Commits format.
+
+See `references/commit-format.md` for type table, rules, and anti-patterns.
+
+### Step 4: Stage and commit
+
+```bash
+git add <files>
+git commit -m "<type>[scope]: <description>"
+```
+
+For multi-line messages:
+
+```bash
+git commit -m "<subject>" -m "<body>"
+```
+
+Subject line: imperative mood, under 72 chars, no period, English only.
+Body (if needed): wrap at 72 chars, explain what and why.
+
+### Step 5: Verify
+
+```bash
+git log --oneline -1
+git show --stat HEAD
+```
+
+Report: commit hash, files changed, insertions/deletions.
+
+## Error Recovery
+
+| Error | Fix |
+|---|---|
+| "nothing to commit" | Check `git status`, verify files have changes |
+| Pre-commit hook fails | Read the error, fix the issue, create a NEW commit (do not amend) |
+| Wrong files committed | `git reset --soft HEAD~1`, re-stage correctly, commit again |
