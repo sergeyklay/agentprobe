@@ -8,6 +8,7 @@ Reads experiment.yaml and per-run metrics.json files, computes statistics
 
 Usage: python3 report_generator.py <experiment_dir>
 """
+
 import glob
 import json
 import math
@@ -96,10 +97,19 @@ def main():
             return (0, 0)
         m = sum(vals) / n
         s = stddev(lst, key)
-        t_table = {2: 12.706, 3: 4.303, 4: 3.182, 5: 2.776, 6: 2.571,
-                   7: 2.447, 8: 2.365, 9: 2.306, 10: 2.262}
+        t_table = {
+            2: 12.706,
+            3: 4.303,
+            4: 3.182,
+            5: 2.776,
+            6: 2.571,
+            7: 2.447,
+            8: 2.365,
+            9: 2.306,
+            10: 2.262,
+        }
         t = t_table.get(n, 1.96)
-        se = s / (n ** 0.5)
+        se = s / (n**0.5)
         return (m - t * se, m + t * se)
 
     def cohens_d(lst_a, lst_b, key):
@@ -107,17 +117,25 @@ def main():
         bv = [m[key] for m in lst_b if isinstance(m.get(key), (int, float))]
         if not av or not bv:
             return 0
-        am, bm = sum(av)/len(av), sum(bv)/len(bv)
+        am, bm = sum(av) / len(av), sum(bv) / len(bv)
         na, nb = len(av), len(bv)
-        avar = sum((x-am)**2 for x in av)/(na-1) if na>1 else 0
-        bvar = sum((x-bm)**2 for x in bv)/(nb-1) if nb>1 else 0
-        pooled = math.sqrt(((na-1)*avar + (nb-1)*bvar)/(na+nb-2)) if na+nb>2 else 0
-        return (bm-am)/pooled if pooled else 0
+        avar = sum((x - am) ** 2 for x in av) / (na - 1) if na > 1 else 0
+        bvar = sum((x - bm) ** 2 for x in bv) / (nb - 1) if nb > 1 else 0
+        pooled = (
+            math.sqrt(((na - 1) * avar + (nb - 1) * bvar) / (na + nb - 2))
+            if na + nb > 2
+            else 0
+        )
+        return (bm - am) / pooled if pooled else 0
 
     def success_rate(lst):
         if not lst:
             return 0
-        return sum(1 for m in lst if m.get("test_exit_code") == 0 and m.get("tests_failed", 1) == 0) / len(lst)
+        return sum(
+            1
+            for m in lst
+            if m.get("test_exit_code") == 0 and m.get("tests_failed", 1) == 0
+        ) / len(lst)
 
     def pass_at_k(n, c, k):
         """Unbiased estimator: pass@k = 1 - C(n-c, k) / C(n, k)."""
@@ -136,7 +154,7 @@ def main():
         return f"{mins}m {rem:.0f}s" if mins > 0 else f"{secs:.1f}s"
 
     def fmt_tokens(t):
-        return f"{t/1000:.1f}K" if t >= 1000 else str(int(t))
+        return f"{t / 1000:.1f}K" if t >= 1000 else str(int(t))
 
     def fmt_cost(usd):
         if usd >= 1.0:
@@ -144,7 +162,9 @@ def main():
         return f"${usd:.4f}"
 
     # Pricing per million tokens — loaded from framework/pricing.json
-    pricing_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pricing.json")
+    pricing_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "pricing.json"
+    )
     with open(pricing_path) as pf:
         pricing = json.load(pf)
 
@@ -200,15 +220,24 @@ def main():
             "cache_read_avg": round(avg(cl, "cache_read_input_tokens"), 1),
             "cache_create_avg": round(avg(cl, "cache_creation_input_tokens"), 1),
             "tool_calls_avg": round(avg(cl, "tool_calls"), 1),
-            "cost_avg": round(avg(cl, "estimated_cost_usd"), 4) if any("estimated_cost_usd" in m for m in cl) else None,
+            "cost_avg": round(avg(cl, "estimated_cost_usd"), 4)
+            if any("estimated_cost_usd" in m for m in cl)
+            else None,
             "cost_total": round(sum(m.get("estimated_cost_usd", 0) for m in cl), 4),
             "success_rate": round(success_rate(cl), 3),
             "typecheck_pass_rate": round(
-                sum(1 for m in cl if m.get("typecheck_exit_code") == 0) / max(len(cl), 1), 3),
+                sum(1 for m in cl if m.get("typecheck_exit_code") == 0)
+                / max(len(cl), 1),
+                3,
+            ),
         }
         # pass@k — compute for k = 1..min(n, 10)
         n_runs = len(cl)
-        c_pass = sum(1 for m in cl if m.get("test_exit_code") == 0 and m.get("tests_failed", 1) == 0)
+        c_pass = sum(
+            1
+            for m in cl
+            if m.get("test_exit_code") == 0 and m.get("tests_failed", 1) == 0
+        )
         pass_k = {}
         for k in range(1, min(n_runs, 10) + 1):
             val = pass_at_k(n_runs, c_pass, k)
@@ -243,11 +272,15 @@ def main():
     p("")
     p("| Variable | Value |")
     p("|---|---|")
-    p(f"| Model | `{model}` |")
+    p(f"| Model | {model} |")
     p(f"| Max turns | {max_turns} |")
-    runs_display = f"{per_condition} (config: {per_condition_config})" if per_condition != per_condition_config else str(per_condition)
+    runs_display = (
+        f"{per_condition} (config: {per_condition_config})"
+        if per_condition != per_condition_config
+        else str(per_condition)
+    )
     p(f"| Runs/condition | {runs_display} |")
-    p(f"| Base commit | `{base_commit[:12]}` |")
+    p(f"| Base commit | {base_commit[:12]} |")
     p(f"| Conditions | {', '.join(conditions)} |")
 
     # Read started_at from experiment-run.json if available
@@ -276,21 +309,29 @@ def main():
     p(header)
     p(sep)
 
-    def row(label, key, fmt_fn=str, bold=False):
-        name = f"**{label}**" if bold else label
-        r = f"| {name} |"
+    def row(label, key, fmt_fn=str):
+        r = f"| {label} |"
         vals = []
         for c in conditions:
-            v = avg(by_condition[c], key) if "avg" not in label.lower() else avg(by_condition[c], key)
+            v = avg(by_condition[c], key)
             vals.append(v)
             r += f" {fmt_fn(v)} |"
         if len(conditions) >= 2:
             r += f" {delta_pct(vals[0], vals[1])} |"
         p(r)
 
-    row("Duration (avg)", "duration_ms", fmt_ms, bold=True)
-    row("Duration (median)", "duration_ms",
-        lambda v: fmt_ms(median(by_condition[conditions[0]], "duration_ms")) if v == avg(by_condition[conditions[0]], "duration_ms") else fmt_ms(v))
+    row("Duration (avg)", "duration_ms", fmt_ms)
+
+    # Duration median — built directly (row() always computes avg)
+    r = "| Duration (median) |"
+    med_vals = []
+    for c in conditions:
+        v = median(by_condition[c], "duration_ms")
+        med_vals.append(v)
+        r += f" {fmt_ms(v)} |"
+    if len(conditions) >= 2:
+        r += f" {delta_pct(med_vals[0], med_vals[1])} |"
+    p(r)
 
     # Duration CI
     r = "| Duration (95% CI) |"
@@ -301,16 +342,16 @@ def main():
         r += " - |"
     p(r)
 
-    row("Total tokens (avg)", "total_tokens", fmt_tokens, bold=True)
+    row("Total tokens (avg)", "total_tokens", fmt_tokens)
     row("Input tokens (avg)", "input_tokens", fmt_tokens)
     row("Output tokens (avg)", "output_tokens", fmt_tokens)
     row("Cache read (avg)", "cache_read_input_tokens", fmt_tokens)
     row("Cache create (avg)", "cache_creation_input_tokens", fmt_tokens)
-    row("Tool calls (avg)", "tool_calls", lambda v: f"{v:.1f}", bold=True)
+    row("Tool calls (avg)", "tool_calls", lambda v: f"{v:.1f}")
 
     # Cost row
     if any("estimated_cost_usd" in m for m in all_metrics):
-        row("**Est. cost/run (avg)**", "estimated_cost_usd", fmt_cost, bold=False)
+        row("Est. cost/run (avg)", "estimated_cost_usd", fmt_cost)
 
         # Total cost per condition
         r = "| Est. cost total |"
@@ -318,18 +359,21 @@ def main():
             total = sum(m.get("estimated_cost_usd", 0) for m in by_condition[c])
             r += f" {fmt_cost(total)} |"
         if len(conditions) >= 2:
-            totals = [sum(m.get("estimated_cost_usd", 0) for m in by_condition[c]) for c in conditions]
+            totals = [
+                sum(m.get("estimated_cost_usd", 0) for m in by_condition[c])
+                for c in conditions
+            ]
             r += f" {delta_pct(totals[0], totals[1])} |"
         p(r)
 
         # Experiment total
         grand_total = sum(m.get("estimated_cost_usd", 0) for m in all_metrics)
-        p(f"| **Est. experiment total** | | | **{fmt_cost(grand_total)}** |")
+        p(f"| Est. experiment total | | | {fmt_cost(grand_total)} |")
 
     # Success rates
-    r = "| **Test success** |"
+    r = "| Test success |"
     for c in conditions:
-        r += f" {success_rate(by_condition[c])*100:.0f}% |"
+        r += f" {success_rate(by_condition[c]) * 100:.0f}% |"
     if len(conditions) >= 2:
         r += " - |"
     p(r)
@@ -341,9 +385,13 @@ def main():
         r = f"| pass@{k} |"
         for c in conditions:
             n_runs = len(by_condition[c])
-            c_pass = sum(1 for m in by_condition[c] if m.get("test_exit_code") == 0 and m.get("tests_failed", 1) == 0)
+            c_pass = sum(
+                1
+                for m in by_condition[c]
+                if m.get("test_exit_code") == 0 and m.get("tests_failed", 1) == 0
+            )
             val = pass_at_k(n_runs, c_pass, k)
-            r += f" {val*100:.1f}% |" if val is not None else " N/A |"
+            r += f" {val * 100:.1f}% |" if val is not None else " N/A |"
         if len(conditions) >= 2:
             r += " - |"
         p(r)
@@ -372,16 +420,22 @@ def main():
         p("")
         has_cost = any("estimated_cost_usd" in m for m in cl)
         if has_cost:
-            p("| Run | Duration | Tokens | Cost | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |")
+            p(
+                "| Run | Duration | Tokens | Cost | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |"
+            )
             p("|---|---|---|---|---|---|---|---|---|")
         else:
-            p("| Run | Duration | Tokens | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |")
+            p(
+                "| Run | Duration | Tokens | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |"
+            )
             p("|---|---|---|---|---|---|---|---|")
         for m in cl:
             tc = "PASS" if m.get("typecheck_exit_code") == 0 else "FAIL"
             cm = "Yes" if m.get("has_commit") else "No"
             cost_col = f" {fmt_cost(m['estimated_cost_usd'])} |" if has_cost else ""
-            p(f"| {m.get('run', '?')} | {fmt_ms(m.get('duration_ms', 0))} | {fmt_tokens(m.get('total_tokens', 0))} |{cost_col} {m.get('tool_calls', 0)} | {m.get('tests_passed', 0)} | {m.get('tests_failed', 0)} | {tc} | {cm} |")
+            p(
+                f"| {m.get('run', '?')} | {fmt_ms(m.get('duration_ms', 0))} | {fmt_tokens(m.get('total_tokens', 0))} |{cost_col} {m.get('tool_calls', 0)} | {m.get('tests_passed', 0)} | {m.get('tests_failed', 0)} | {tc} | {cm} |"
+            )
 
     # Commit messages
     p("")
@@ -391,7 +445,9 @@ def main():
     p("")
     for m in all_metrics:
         if m.get("has_commit") and m.get("commit_message"):
-            p(f"- **{m['condition']} run {m.get('run', '?')}:** `{m['commit_message']}`")
+            p(
+                f"- **{m['condition']} run {m.get('run', '?')}:** `{m['commit_message']}`"
+            )
 
     p("")
     p("---")
