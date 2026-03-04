@@ -10,6 +10,7 @@ hypothesis: |
 project:
   local_path: "~/work/typescript-eslint"
   base_commit: "a09921e2de2e8790e6a803016b825815ca9409d8"
+  setup_command: "pnpm install --frozen-lockfile"
 
 agent:
   cli: "claude"
