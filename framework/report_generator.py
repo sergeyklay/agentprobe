@@ -36,7 +36,7 @@ def main():
     model = yq(".agent.model")
     max_turns = yq(".agent.max_turns")
     base_commit = yq(".project.base_commit")
-    per_condition = int(yq(".runs.per_condition"))
+    per_condition_config = int(yq(".runs.per_condition"))
     num_conditions = int(yq(".conditions | length"))
 
     conditions = []
@@ -65,6 +65,8 @@ def main():
     by_condition = {}
     for cond in conditions:
         by_condition[cond] = [m for m in all_metrics if m.get("condition") == cond]
+
+    per_condition = max(len(v) for v in by_condition.values()) if by_condition else 0
 
     # ------------------------------------------------------------------
     # Statistics helpers
@@ -243,7 +245,8 @@ def main():
     p("|---|---|")
     p(f"| Model | `{model}` |")
     p(f"| Max turns | {max_turns} |")
-    p(f"| Runs/condition | {per_condition} |")
+    runs_display = f"{per_condition} (config: {per_condition_config})" if per_condition != per_condition_config else str(per_condition)
+    p(f"| Runs/condition | {runs_display} |")
     p(f"| Base commit | `{base_commit[:12]}` |")
     p(f"| Conditions | {', '.join(conditions)} |")
 
