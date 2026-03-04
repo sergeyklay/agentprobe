@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+WORKTREE_DIR="${1:?Usage: setup.sh <worktree_dir>}"
+rm -f "$WORKTREE_DIR/CLAUDE.md" "$WORKTREE_DIR/.cursorrules"
+echo "  [setup] Control: {{CONDITION_NAME}}"

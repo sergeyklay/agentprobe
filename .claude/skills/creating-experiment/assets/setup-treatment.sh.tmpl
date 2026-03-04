@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+WORKTREE_DIR="${1:?Usage: setup.sh <worktree_dir>}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cp "$SCRIPT_DIR/artifacts/{{ARTIFACT_NAME}}" "$WORKTREE_DIR/{{ARTIFACT_NAME}}"
+echo "  [setup] {{CONDITION_NAME}}: {{ARTIFACT_NAME}} placed"
