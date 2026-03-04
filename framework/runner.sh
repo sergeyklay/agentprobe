@@ -43,6 +43,10 @@ test_command=$(yq '.task.verification.test_command // ""' "$CONFIG_FILE")
 typecheck_command=$(yq '.task.verification.typecheck_command // ""' "$CONFIG_FILE")
 test_parser=$(yq '.task.verification.test_parser // "vitest"' "$CONFIG_FILE")
 
+# Timeouts (seconds) — prevents hung verification from blocking the experiment
+verification_timeout=$(yq '.task.verification.timeout // 600' "$CONFIG_FILE")
+agent_timeout=$(yq '.agent.timeout // 3600' "$CONFIG_FILE")
+
 # ---------------------------------------------------------------------------
 # Output paths
 # ---------------------------------------------------------------------------
@@ -84,18 +88,23 @@ task_prompt=$(cat "$prompt_file")
 # ---------------------------------------------------------------------------
 start_time=$(date +%s%3N)
 
-echo "  Starting $agent_cli (model=$model, max-turns=$max_turns)..."
+echo "  Starting $agent_cli (model=$model, max-turns=$max_turns, timeout=${agent_timeout}s)..."
 
 agent_exit_code=0
 (
   cd "$worktree_dir"
-  "$agent_cli" -p "$task_prompt" \
+  timeout "$agent_timeout" \
+    "$agent_cli" -p "$task_prompt" \
     --model "$model" \
     --max-turns "$max_turns" \
     --output-format "$output_format" \
     "${extra_flags[@]}" \
     2>&1
 ) > "$log_file" || agent_exit_code=$?
+
+if [[ $agent_exit_code -eq 124 ]]; then
+  echo "  TIMEOUT: Agent killed after ${agent_timeout}s"
+fi
 
 end_time=$(date +%s%3N)
 duration_ms=$(( end_time - start_time ))
@@ -118,8 +127,13 @@ typecheck_exit=0
 test_output=""
 
 if [[ -n "$test_command" && "$test_command" != "null" ]]; then
-  echo "  Running tests..."
-  test_output=$(cd "$worktree_dir" && AGENTPROBE_BASE_COMMIT="$base_commit" eval "$test_command") || test_exit_code=$?
+  echo "  Running tests (timeout ${verification_timeout}s)..."
+  test_output=$(cd "$worktree_dir" && timeout "$verification_timeout" \
+    bash -c "AGENTPROBE_BASE_COMMIT='$base_commit' eval '$test_command'") || test_exit_code=$?
+
+  if [[ $test_exit_code -eq 124 ]]; then
+    echo "  TIMEOUT: Tests killed after ${verification_timeout}s"
+  fi
 
   # Parse test results based on test_parser
   case "$test_parser" in
@@ -134,9 +148,15 @@ if [[ -n "$test_command" && "$test_command" != "null" ]]; then
 fi
 
 if [[ -n "$typecheck_command" && "$typecheck_command" != "null" ]]; then
-  echo "  Running typecheck..."
-  (cd "$worktree_dir" && eval "$typecheck_command" > /dev/null 2>&1) || typecheck_exit=$?
-  echo "  Typecheck exit: $typecheck_exit"
+  echo "  Running typecheck (timeout ${verification_timeout}s)..."
+  (cd "$worktree_dir" && timeout "$verification_timeout" \
+    bash -c "eval '$typecheck_command'" > /dev/null 2>&1) || typecheck_exit=$?
+
+  if [[ $typecheck_exit -eq 124 ]]; then
+    echo "  TIMEOUT: Typecheck killed after ${verification_timeout}s"
+  else
+    echo "  Typecheck exit: $typecheck_exit"
+  fi
 fi
 
 # ---------------------------------------------------------------------------

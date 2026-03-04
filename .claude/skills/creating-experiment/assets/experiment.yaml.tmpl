@@ -12,6 +12,7 @@ agent:
   cli: "{{AGENT_CLI}}"
   model: "{{MODEL}}"
   max_turns: {{MAX_TURNS}}
+  timeout: {{AGENT_TIMEOUT}}  # seconds; kill agent if exceeded
   output_format: "stream-json"
   extra_flags:
     - "--dangerously-skip-permissions"
@@ -31,6 +32,7 @@ task:
     test_command: "{{TEST_COMMAND}}"
     typecheck_command: "{{TYPECHECK_COMMAND}}"
     test_parser: "{{TEST_PARSER}}"
+    timeout: {{VERIFICATION_TIMEOUT}}  # seconds; kill tests/typecheck if exceeded
 
 statistics:
   confidence_level: 0.95
