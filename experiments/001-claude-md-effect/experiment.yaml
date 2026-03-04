@@ -15,6 +15,7 @@ agent:
   cli: "claude"
   model: "claude-sonnet-4-6"
   max_turns: 50
+  timeout: 3600  # seconds; kill agent if it runs longer than 1 hour
   output_format: "stream-json"
   extra_flags:
     - "--dangerously-skip-permissions"
@@ -43,6 +44,7 @@ task:
       fi
     typecheck_command: "npx tsc --noEmit -p packages/eslint-plugin/tsconfig.json"
     test_parser: "vitest"
+    timeout: 600  # seconds; kill tests/typecheck if they run longer than 10 min
 
 statistics:
   confidence_level: 0.95

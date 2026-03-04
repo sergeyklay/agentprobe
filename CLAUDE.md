@@ -14,6 +14,7 @@
 - `experiment.yaml` multiline `test_command` is passed through `eval` — it must be valid bash, not just a single command
 - `$AGENTPROBE_BASE_COMMIT` is exported by runner.sh before eval of test_command — use it instead of `HEAD~1` (agent may not have committed)
 - Cache tokens (`cache_read_input_tokens`, `cache_creation_input_tokens`) are tracked separately from `input_tokens` — do not lump them together
+- Verification commands (test, typecheck) are wrapped in `timeout` — defaults: `agent.timeout` 3600s, `verification.timeout` 600s. Exit code 124 = killed by timeout
 
 ## Boundaries
 

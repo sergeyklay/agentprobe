@@ -52,9 +52,12 @@ write all generated files in English.
 9. Ask which agent CLI (default: `claude`)
 10. Ask which model (default: `claude-sonnet-4-6`)
 11. Ask max turns (default: 50)
-12. Ask runs per condition (default: 5, minimum 3 — at temperature=0
+12. Ask agent timeout in seconds (default: 3600 = 1 hour)
+13. Ask verification timeout in seconds (default: 600 = 10 min) —
+    this prevents hung tests/typecheck from blocking the experiment
+14. Ask runs per condition (default: 5, minimum 3 — at temperature=0
     accuracy varies up to 15% between runs per Atil et al. arxiv:2408.04667)
-13. Ask whether to interleave conditions (default: true, A-B-A-B pattern
+15. Ask whether to interleave conditions (default: true, A-B-A-B pattern
     to control for API latency drift)
 
 ### Round 4: Condition Artifacts
@@ -119,11 +122,13 @@ After the interview, generate the experiment:
 
 ## Defaults
 
-| Parameter          | Default           | Rationale                                 |
-| ------------------ | ----------------- | ----------------------------------------- |
-| Runs per condition | 5                 | Atil et al.: up to 15% variance at temp=0 |
-| Interleave         | true              | Controls API latency drift                |
-| Max turns          | 50                | Sufficient for most code tasks            |
-| Model              | claude-sonnet-4-6 | Cost-effective for benchmarking           |
-| Confidence level   | 0.95              | Standard for scientific reporting         |
-| Output format      | stream-json       | Required for metrics extraction           |
+| Parameter            | Default           | Rationale                                        |
+| -------------------- | ----------------- | ------------------------------------------------ |
+| Runs per condition   | 5                 | Atil et al.: up to 15% variance at temp=0        |
+| Interleave           | true              | Controls API latency drift                       |
+| Max turns            | 50                | Sufficient for most code tasks                   |
+| Agent timeout        | 3600s (1 hour)    | Prevents hung agent from blocking experiment     |
+| Verification timeout | 600s (10 min)     | Prevents hung tests/typecheck from blocking runs |
+| Model                | claude-sonnet-4-6 | Cost-effective for benchmarking                  |
+| Confidence level     | 0.95              | Standard for scientific reporting                |
+| Output format        | stream-json       | Required for metrics extraction                  |
