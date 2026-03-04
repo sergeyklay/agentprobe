@@ -119,13 +119,6 @@ The main repository is never modified. This ensures:
 | `yq`      | 4.x (mikefarah) | YAML config parsing (`experiment.yaml`)                    |
 | `python3` | 3.8+            | Statistics (CI, Cohen's d), log parsing, report generation |
 
-### Per-experiment requirements (depend on the target project)
-
-| Tool           | When needed                           |
-| -------------- | ------------------------------------- |
-| `node`         | TypeScript/JavaScript projects        |
-| `pnpm` / `npm` | Package management for target project |
-
 ### Setup
 
 1. Install and authenticate the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
