@@ -46,8 +46,7 @@ agentprobe/
 │   └── xxx-your-hypothesis/            # Add your own — no framework changes
 │
 ├── research/                           # Background research and references
-├── archive/                            # Preserved results from prior versions
-└── .tasks/                             # Task specs and roadmap
+└── archive/                            # Preserved results from prior versions
 ```
 
 ## How It Works
