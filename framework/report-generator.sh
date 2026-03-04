@@ -128,39 +128,6 @@ def fmt_ms(ms):
 def fmt_tokens(t):
     return f"{t/1000:.1f}K" if t >= 1000 else str(int(t))
 
-def fmt_cost(usd):
-    if usd >= 1.0:
-        return f"${usd:.2f}"
-    return f"${usd:.4f}"
-
-# Pricing per million tokens (source: platform.claude.com/docs/en/about-claude/pricing)
-PRICING = {
-    "claude-sonnet-4-6":      {"input": 3.0,  "output": 15.0, "cache_read": 0.30, "cache_write": 3.75},
-    "claude-sonnet-4-5":      {"input": 3.0,  "output": 15.0, "cache_read": 0.30, "cache_write": 3.75},
-    "claude-sonnet-4":        {"input": 3.0,  "output": 15.0, "cache_read": 0.30, "cache_write": 3.75},
-    "claude-opus-4-6":        {"input": 5.0,  "output": 25.0, "cache_read": 0.50, "cache_write": 6.25},
-    "claude-opus-4-5":        {"input": 5.0,  "output": 25.0, "cache_read": 0.50, "cache_write": 6.25},
-    "claude-haiku-4-5":       {"input": 1.0,  "output": 5.0,  "cache_read": 0.10, "cache_write": 1.25},
-}
-
-def calc_cost(m, model_name):
-    """Calculate estimated cost in USD for a single run."""
-    rates = PRICING.get(model_name)
-    if not rates:
-        return None
-    return (
-        m.get("input_tokens", 0) * rates["input"]
-        + m.get("output_tokens", 0) * rates["output"]
-        + m.get("cache_read_input_tokens", 0) * rates["cache_read"]
-        + m.get("cache_creation_input_tokens", 0) * rates["cache_write"]
-    ) / 1_000_000
-
-# Compute cost for each run
-for m in all_metrics:
-    cost = calc_cost(m, model)
-    if cost is not None:
-        m["estimated_cost_usd"] = round(cost, 4)
-
 def delta_pct(a, b):
     if a == 0: return "N/A"
     pct = ((b - a) / a) * 100
@@ -186,8 +153,6 @@ for cond in conditions:
         "cache_read_avg": round(avg(cl, "cache_read_input_tokens"), 1),
         "cache_create_avg": round(avg(cl, "cache_creation_input_tokens"), 1),
         "tool_calls_avg": round(avg(cl, "tool_calls"), 1),
-        "cost_avg": round(avg(cl, "estimated_cost_usd"), 4) if any("estimated_cost_usd" in m for m in cl) else None,
-        "cost_total": round(sum(m.get("estimated_cost_usd", 0) for m in cl), 4),
         "success_rate": round(success_rate(cl), 3),
         "typecheck_pass_rate": round(
             sum(1 for m in cl if m.get("typecheck_exit_code") == 0) / max(len(cl), 1), 3),
@@ -284,24 +249,6 @@ row("Cache read (avg)", "cache_read_input_tokens", fmt_tokens)
 row("Cache create (avg)", "cache_creation_input_tokens", fmt_tokens)
 row("Tool calls (avg)", "tool_calls", lambda v: f"{v:.1f}", bold=True)
 
-# Cost row
-if any("estimated_cost_usd" in m for m in all_metrics):
-    row("**Est. cost/run (avg)**", "estimated_cost_usd", fmt_cost, bold=False)
-
-    # Total cost per condition
-    r = "| Est. cost total |"
-    for c in conditions:
-        total = sum(m.get("estimated_cost_usd", 0) for m in by_condition[c])
-        r += f" {fmt_cost(total)} |"
-    if len(conditions) >= 2:
-        totals = [sum(m.get("estimated_cost_usd", 0) for m in by_condition[c]) for c in conditions]
-        r += f" {delta_pct(totals[0], totals[1])} |"
-    p(r)
-
-    # Experiment total
-    grand_total = sum(m.get("estimated_cost_usd", 0) for m in all_metrics)
-    p(f"| **Est. experiment total** | | | **{fmt_cost(grand_total)}** |")
-
 # Success rates
 r = "| **Test success** |"
 for c in conditions:
@@ -333,18 +280,12 @@ for cond in conditions:
     p("")
     p(f"### {cond}")
     p("")
-    has_cost = any("estimated_cost_usd" in m for m in cl)
-    if has_cost:
-        p("| Run | Duration | Tokens | Cost | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |")
-        p("|---|---|---|---|---|---|---|---|---|")
-    else:
-        p("| Run | Duration | Tokens | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |")
-        p("|---|---|---|---|---|---|---|---|")
+    p("| Run | Duration | Tokens | Tool Calls | Tests Pass | Tests Fail | Typecheck | Committed |")
+    p("|---|---|---|---|---|---|---|---|")
     for m in cl:
         tc = "PASS" if m.get("typecheck_exit_code") == 0 else "FAIL"
         cm = "Yes" if m.get("has_commit") else "No"
-        cost_col = f" {fmt_cost(m['estimated_cost_usd'])} |" if has_cost else ""
-        p(f"| {m.get('run', '?')} | {fmt_ms(m.get('duration_ms', 0))} | {fmt_tokens(m.get('total_tokens', 0))} |{cost_col} {m.get('tool_calls', 0)} | {m.get('tests_passed', 0)} | {m.get('tests_failed', 0)} | {tc} | {cm} |")
+        p(f"| {m.get('run', '?')} | {fmt_ms(m.get('duration_ms', 0))} | {fmt_tokens(m.get('total_tokens', 0))} | {m.get('tool_calls', 0)} | {m.get('tests_passed', 0)} | {m.get('tests_failed', 0)} | {tc} | {cm} |")
 
 # Commit messages
 p("")
