@@ -32,14 +32,20 @@ write all generated files in English.
 
 6. Ask for the base commit SHA (if auto-discovered, use HEAD after cloning)
 
-7. Ask what task the agent should perform — must be:
+7. Ask if the project needs a setup command to run in each worktree
+   before the agent starts (e.g., `pnpm install --frozen-lockfile`,
+   `pip install -e .`). Git worktrees only contain tracked files —
+   dependencies must be installed explicitly. Optional field:
+   `project.setup_command`
+
+8. Ask what task the agent should perform — must be:
    - Specific enough to be actionable
    - Identical across all conditions
    - Verifiable with tests
    - If auto-discovered, rewrite the issue as an agent instruction
      (imperative form, verification steps, no solution hints)
 
-8. Ask how to verify success:
+9. Ask how to verify success:
    - Test command (e.g., `npx vitest run path/to/test.ts`)
    - Typecheck command (optional)
    - Test parser: `vitest` or `jest`
@@ -49,33 +55,33 @@ write all generated files in English.
 
 ### Round 3: Agent Configuration
 
-9. Ask which agent CLI (default: `claude`)
-10. Ask which model (default: `claude-sonnet-4-6`)
-11. Ask max turns (default: 50)
-12. Ask agent timeout in seconds (default: 3600 = 1 hour)
-13. Ask verification timeout in seconds (default: 600 = 10 min) —
+10. Ask which agent CLI (default: `claude`)
+11. Ask which model (default: `claude-sonnet-4-6`)
+12. Ask max turns (default: 50)
+13. Ask agent timeout in seconds (default: 3600 = 1 hour)
+14. Ask verification timeout in seconds (default: 600 = 10 min) —
     this prevents hung tests/typecheck from blocking the experiment
-14. Ask runs per condition (default: 5, minimum 3 — at temperature=0
+15. Ask runs per condition (default: 5, minimum 3 — at temperature=0
     accuracy varies up to 15% between runs per Atil et al. arxiv:2408.04667)
-15. Ask whether to interleave conditions (default: true, A-B-A-B pattern
+16. Ask whether to interleave conditions (default: true, A-B-A-B pattern
     to control for API latency drift)
 
 ### Round 4: Condition Artifacts
 
 For each condition:
 
-14. Ask what files to place in the worktree:
+17. Ask what files to place in the worktree:
     - CLAUDE.md variant, .cursor/rules/\*.md, settings.json, or nothing
-15. Ask if any other setup is needed beyond file placement
+18. Ask if any other setup is needed beyond file placement
 
 If the user provides artifact content inline, save it to the condition's
 `artifacts/` directory.
 
 ### Round 5: References
 
-16. Ask for references supporting the hypothesis:
+19. Ask for references supporting the hypothesis:
     - arxiv.org URLs, GitHub URLs, blog posts, prior AgentProbe results
-17. Ask for any additional context (why it matters, prior work, caveats)
+20. Ask for any additional context (why it matters, prior work, caveats)
 
 For each URL provided:
 

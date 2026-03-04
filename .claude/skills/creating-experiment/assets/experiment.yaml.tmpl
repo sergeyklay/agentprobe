@@ -7,6 +7,7 @@ hypothesis: |
 project:
   local_path: "{{PROJECT_PATH}}"
   base_commit: "{{BASE_COMMIT}}"
+  setup_command: "{{SETUP_COMMAND}}"  # optional; runs in worktree before agent
 
 agent:
   cli: "{{AGENT_CLI}}"
